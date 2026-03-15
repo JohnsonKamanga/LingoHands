@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lingo_hands/models/user.dart';
-import 'package:lingo_hands/services/user_services.dart';
 import 'package:lingo_hands/view-models/user_view_model.dart';
+import 'package:provider/provider.dart';
 
 // ─────────────────────────────────────────────
 //  Data model for a role card
@@ -471,7 +471,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             return;
           }
 
-          final userViewModel = UserViewModel(userServices: UserServices());
+          final userViewModel = context.read<UserViewModel>();
           final role = _selectedRole == 0 ? Role.deaf : Role.hearing;
           final signLanguageType = SignLanguageType
               .asl; // Currently only ASL is strictly typed in enum
@@ -489,14 +489,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           }
         },
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF136DEC),
+          backgroundColor: Theme.of(context).colorScheme.primary,
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 18),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
           elevation: 8,
-          shadowColor: const Color(0xFF136DEC).withOpacity(0.4),
+          shadowColor: Theme.of(context).colorScheme.primary.withOpacity(0.4),
         ),
         child: const Row(
           mainAxisAlignment: MainAxisAlignment.center,
