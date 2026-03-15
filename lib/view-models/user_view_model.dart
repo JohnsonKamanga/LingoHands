@@ -1,10 +1,11 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:lingo_hands/models/user.dart';
 import 'package:lingo_hands/services/user_services.dart';
 
-class UserViewModel {
+class UserViewModel extends ChangeNotifier {
   final UserServices _userServices;
   final _storage = const FlutterSecureStorage();
 
@@ -17,11 +18,13 @@ class UserViewModel {
     if (userJson != null) {
       _userServices.setCurrentUser(User.fromJson(jsonDecode(userJson)));
     }
+    notifyListeners();
   }
 
   Future<void> setCurrentUser(User user) async {
     _userServices.setCurrentUser(user);
     await _storage.write(key: 'user', value: user.toJson());
+    notifyListeners();
   }
 
   Future<User?> getCurrentUser() async {
@@ -35,6 +38,7 @@ class UserViewModel {
   Future<void> clearCurrentUser() async {
     _userServices.clearCurrentUser();
     await _storage.delete(key: 'user');
+    notifyListeners();
   }
 
   Role getUserRole() {
