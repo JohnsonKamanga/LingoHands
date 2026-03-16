@@ -40,6 +40,7 @@ dependencies:
   bonsoir: ^3.0.0
   network_info_plus: ^6.1.1
   encrypt: ^5.0.3
+  pointycastle: ^3.9.1
 
 dev_dependencies:
   flutter_test:

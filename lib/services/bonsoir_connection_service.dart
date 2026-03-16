@@ -10,7 +10,10 @@ import 'package:lingo_hands/services/encryption_service.dart';
 class BonsoirConnectionService extends ConnectionService {
   static const String _serviceType = '_lingohands._tcp';
   static const int _port = 4545;
-  static const String _keyExchangePrefix = '__SEC_KEY__:';
+
+  // Handshake prefixes
+  static const String _rsaPubKeyPrefix = '__RSA_PUB_KEY__:';
+  static const String _rsaEncAesPrefix = '__RSA_ENC_AES__:';
 
   ConnectionStatus _status = ConnectionStatus.idle;
   final List<DiscoveredDevice> _discoveredDevices = [];
@@ -64,7 +67,7 @@ class BonsoirConnectionService extends ConnectionService {
       await _broadcast!.ready;
       await _broadcast!.start();
     } catch (e) {
-      if (kDebugMode) print('Broadcast error: $e');
+      if (kDebugMode) debugPrint('Broadcast error: $e');
       _status = ConnectionStatus.error;
       notifyListeners();
     }
@@ -77,13 +80,6 @@ class BonsoirConnectionService extends ConnectionService {
     }
     _socket = socket;
     _status = ConnectionStatus.connected;
-
-    // Server Side: Generate and share the key
-    final sessionKey = EncryptionService.generateRandomKey();
-    _encryptionService.setKey(sessionKey);
-    _isEncryptionReady = true;
-
-    _socket!.add(utf8.encode('$_keyExchangePrefix$sessionKey'));
     notifyListeners();
 
     _socket!.listen(
@@ -97,24 +93,46 @@ class BonsoirConnectionService extends ConnectionService {
   }
 
   void _handleIncomingData(String rawMessage) {
-    if (rawMessage.startsWith(_keyExchangePrefix)) {
-      // Client Side: Receive the key
-      final key = rawMessage.replaceFirst(_keyExchangePrefix, '');
-      _encryptionService.setKey(key);
+    if (rawMessage.startsWith(_rsaPubKeyPrefix)) {
+      // Server (Creator) Side: Receive Public Key, Encrypt AES Key, Send it back
+      final encodedPubKey = rawMessage.replaceFirst(_rsaPubKeyPrefix, '');
+      final sessionKey = EncryptionService.generateRandomKey();
+
+      final encryptedAES = EncryptionService.encryptAESKeyWithRSA(
+        sessionKey,
+        encodedPubKey,
+      );
+      _socket!.add(utf8.encode('$_rsaEncAesPrefix$encryptedAES'));
+
+      _encryptionService.setKey(sessionKey);
       _isEncryptionReady = true;
-      if (kDebugMode) print('Encryption ready with shared key');
       notifyListeners();
+      if (kDebugMode) debugPrint('Server: RSA Handshake complete. AES Ready.');
+    } else if (rawMessage.startsWith(_rsaEncAesPrefix)) {
+      // Client (Looker) Side: Receive Encrypted AES Key, Decrypt it
+      final encryptedAESBase64 = rawMessage.replaceFirst(_rsaEncAesPrefix, '');
+      try {
+        final sessionKey = _encryptionService.decryptAESKeyWithRSA(
+          encryptedAESBase64,
+        );
+        _encryptionService.setKey(sessionKey);
+        _isEncryptionReady = true;
+        notifyListeners();
+        if (kDebugMode)
+          debugPrint('Client: RSA Handshake complete. AES Ready.');
+      } catch (e) {
+        if (kDebugMode) debugPrint('Client Handshake Error: $e');
+      }
     } else if (_isEncryptionReady) {
       try {
         final decryptedMessage = _encryptionService.decrypt(rawMessage);
         _messageController.add(decryptedMessage);
       } catch (e) {
-        if (kDebugMode) print('Decryption error: $e');
+        if (kDebugMode) debugPrint('Decryption error: $e');
       }
     } else {
-      // If encryption isn't ready, we ignore or buffer (though in this design handshake is first)
       if (kDebugMode) {
-        print('Received message before encryption ready: $rawMessage');
+        debugPrint('Received message before encryption ready: $rawMessage');
       }
     }
   }
@@ -153,7 +171,7 @@ class BonsoirConnectionService extends ConnectionService {
       });
       await _discovery!.start();
     } catch (e) {
-      if (kDebugMode) print('Discovery error: $e');
+      if (kDebugMode) debugPrint('Discovery error: $e');
       _status = ConnectionStatus.error;
       notifyListeners();
     }
@@ -197,6 +215,11 @@ class BonsoirConnectionService extends ConnectionService {
       _status = ConnectionStatus.connected;
       notifyListeners();
 
+      // Client initialization: Generate RSA and send Public Key
+      _encryptionService.generateRSAKeyPair();
+      final pubKeyEncoded = _encryptionService.getPublicKeyEncoded();
+      _socket!.add(utf8.encode('$_rsaPubKeyPrefix$pubKeyEncoded'));
+
       _socket!.listen(
         (data) {
           String rawMessage = utf8.decode(data);
@@ -206,7 +229,7 @@ class BonsoirConnectionService extends ConnectionService {
         onError: (e) => disconnect(),
       );
     } catch (e) {
-      if (kDebugMode) print('Connect error: $e');
+      if (kDebugMode) debugPrint('Connect error: $e');
       _status = ConnectionStatus.error;
       notifyListeners();
     }
