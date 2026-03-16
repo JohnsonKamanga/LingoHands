@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lingo_hands/models/user.dart';
 import 'package:lingo_hands/view-models/user_view_model.dart';
 import 'package:provider/provider.dart';
@@ -485,7 +486,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           await userViewModel.setCurrentUser(user);
 
           if (mounted) {
-            // TODO: navigate to next screen
+            context.go('/home');
           }
         },
         style: ElevatedButton.styleFrom(
