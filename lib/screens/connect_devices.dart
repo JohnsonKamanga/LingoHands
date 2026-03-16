@@ -1,60 +1,8 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-
-// ─────────────────────────────────────────────
-//  Data model
-// ─────────────────────────────────────────────
-enum DeviceStatus { strongSignal, available, other }
-
-class NearbyDevice {
-  final String name;
-  final String subtitle;
-  final IconData icon;
-  final Color iconColor;
-  final Color iconBgColor;
-  final DeviceStatus status;
-  final String actionLabel;
-
-  const NearbyDevice({
-    required this.name,
-    required this.subtitle,
-    required this.icon,
-    required this.iconColor,
-    required this.iconBgColor,
-    required this.status,
-    required this.actionLabel,
-  });
-}
-
-const _devices = [
-  NearbyDevice(
-    name: 'iPhone 13 Pro',
-    subtitle: 'Strong Signal',
-    icon: Icons.smartphone,
-    iconColor: Color(0xFF136DEC),
-    iconBgColor: Color(0x33136DEC),
-    status: DeviceStatus.strongSignal,
-    actionLabel: 'Connect',
-  ),
-  NearbyDevice(
-    name: 'Hearing Loop System',
-    subtitle: 'Conference Room B',
-    icon: Icons.hearing,
-    iconColor: Color(0xFFA88B7D),
-    iconBgColor: Color(0x33A88B7D),
-    status: DeviceStatus.other,
-    actionLabel: 'Connect',
-  ),
-  NearbyDevice(
-    name: 'Pixel Watch',
-    subtitle: 'Available',
-    icon: Icons.watch,
-    iconColor: Color(0xFF9CA3AF),
-    iconBgColor: Color(0x26374151),
-    status: DeviceStatus.available,
-    actionLabel: 'Pair',
-  ),
-];
+import 'package:lingo_hands/models/device_connection.dart';
+import 'package:lingo_hands/services/connection_service.dart';
+import 'package:provider/provider.dart';
 
 // ─────────────────────────────────────────────
 //  Main Screen
@@ -74,6 +22,8 @@ class _ConnectDevicesScreenState extends State<ConnectDevicesScreen>
   // Icon scale pulse
   late final AnimationController _iconPulse;
   late final Animation<double> _iconScale;
+
+  bool _isCreatorMode = false;
 
   @override
   void initState() {
@@ -97,9 +47,10 @@ class _ConnectDevicesScreenState extends State<ConnectDevicesScreen>
       duration: const Duration(milliseconds: 900),
     )..repeat(reverse: true);
 
-    _iconScale = Tween<double>(begin: 0.88, end: 1.12).animate(
-      CurvedAnimation(parent: _iconPulse, curve: Curves.easeInOut),
-    );
+    _iconScale = Tween<double>(
+      begin: 0.88,
+      end: 1.12,
+    ).animate(CurvedAnimation(parent: _iconPulse, curve: Curves.easeInOut));
   }
 
   @override
@@ -127,6 +78,8 @@ class _ConnectDevicesScreenState extends State<ConnectDevicesScreen>
                     children: [
                       _buildHeroSection(),
                       const SizedBox(height: 8),
+                      _buildModeSelector(),
+                      const SizedBox(height: 24),
                       _buildScanButton(),
                       const SizedBox(height: 36),
                       _buildDeviceList(),
@@ -137,6 +90,35 @@ class _ConnectDevicesScreenState extends State<ConnectDevicesScreen>
             ),
           ),
           _buildBottomBar(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildModeSelector() {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: const Color(0xFF101822),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withOpacity(0.05)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _ModeButton(
+              label: 'Look for Connections',
+              isSelected: !_isCreatorMode,
+              onTap: () => setState(() => _isCreatorMode = false),
+            ),
+          ),
+          Expanded(
+            child: _ModeButton(
+              label: 'Create Connection',
+              isSelected: _isCreatorMode,
+              onTap: () => setState(() => _isCreatorMode = true),
+            ),
+          ),
         ],
       ),
     );
@@ -161,7 +143,11 @@ class _ConnectDevicesScreenState extends State<ConnectDevicesScreen>
             ),
             Row(
               children: const [
-                Icon(Icons.signal_cellular_alt, size: 16, color: Color(0xFF9CA3AF)),
+                Icon(
+                  Icons.signal_cellular_alt,
+                  size: 16,
+                  color: Color(0xFF9CA3AF),
+                ),
                 SizedBox(width: 4),
                 Icon(Icons.wifi, size: 16, color: Color(0xFF9CA3AF)),
                 SizedBox(width: 4),
@@ -200,7 +186,9 @@ class _ConnectDevicesScreenState extends State<ConnectDevicesScreen>
           IconButton(
             icon: const Icon(Icons.help_outline),
             onPressed: () {},
-            style: IconButton.styleFrom(foregroundColor: const Color(0xFF9CA3AF)),
+            style: IconButton.styleFrom(
+              foregroundColor: const Color(0xFF9CA3AF),
+            ),
           ),
         ],
       ),
@@ -213,11 +201,9 @@ class _ConnectDevicesScreenState extends State<ConnectDevicesScreen>
       padding: const EdgeInsets.symmetric(vertical: 24),
       child: Column(
         children: [
-          // Glow + image stack
           Stack(
             alignment: Alignment.center,
             children: [
-              // Background glow
               Container(
                 width: 220,
                 height: 220,
@@ -232,7 +218,6 @@ class _ConnectDevicesScreenState extends State<ConnectDevicesScreen>
                   ],
                 ),
               ),
-              // Illustration box
               Container(
                 width: 260,
                 height: 260,
@@ -251,20 +236,15 @@ class _ConnectDevicesScreenState extends State<ConnectDevicesScreen>
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      // Placeholder gradient in place of the remote image
                       Container(
                         decoration: const BoxDecoration(
                           gradient: LinearGradient(
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
-                            colors: [
-                              Color(0xFF1A2430),
-                              Color(0xFF0D1520),
-                            ],
+                            colors: [Color(0xFF1A2430), Color(0xFF0D1520)],
                           ),
                         ),
                       ),
-                      // Stylised icon placeholder
                       const Center(
                         child: Icon(
                           Icons.connecting_airports,
@@ -272,23 +252,18 @@ class _ConnectDevicesScreenState extends State<ConnectDevicesScreen>
                           color: Color(0x33136DEC),
                         ),
                       ),
-                      // Bottom gradient overlay
                       Positioned.fill(
                         child: DecoratedBox(
                           decoration: const BoxDecoration(
                             gradient: LinearGradient(
                               begin: Alignment.bottomCenter,
                               end: Alignment.topCenter,
-                              colors: [
-                                Color(0xCC101822),
-                                Colors.transparent,
-                              ],
+                              colors: [Color(0xCC101822), Colors.transparent],
                               stops: [0.0, 0.5],
                             ),
                           ),
                         ),
                       ),
-                      // Ring overlay
                       Positioned.fill(
                         child: DecoratedBox(
                           decoration: BoxDecoration(
@@ -315,10 +290,12 @@ class _ConnectDevicesScreenState extends State<ConnectDevicesScreen>
             ),
           ),
           const SizedBox(height: 6),
-          const Text(
-            'Link your devices to start real-time\ninclusive translation.',
+          Text(
+            _isCreatorMode
+                ? 'Allow other devices to find and connect\nto this device.'
+                : 'Link your devices to start real-time\ninclusive translation.',
             textAlign: TextAlign.center,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 13,
               color: Color(0xFF9CA3AF),
               height: 1.6,
@@ -331,6 +308,11 @@ class _ConnectDevicesScreenState extends State<ConnectDevicesScreen>
 
   // ── Scan button with ripple rings ──────────
   Widget _buildScanButton() {
+    final service = context.watch<ConnectionService>();
+    final isRunning =
+        service.status == ConnectionStatus.scanning ||
+        service.status == ConnectionStatus.broadcasting;
+
     return Column(
       children: [
         SizedBox(
@@ -339,32 +321,56 @@ class _ConnectDevicesScreenState extends State<ConnectDevicesScreen>
           child: Stack(
             alignment: Alignment.center,
             children: [
-              // Ring 1
-              _RippleRing(controller: _ring1),
-              // Ring 2 (staggered)
-              _RippleRing(controller: _ring2),
-              // Button
+              if (isRunning) ...[
+                _RippleRing(controller: _ring1),
+                _RippleRing(controller: _ring2),
+              ],
               GestureDetector(
-                onTap: () {},
+                onTap: () {
+                  if (isRunning) {
+                    if (_isCreatorMode) {
+                      service.stopBroadcasting();
+                    } else {
+                      service.stopDiscovery();
+                    }
+                  } else {
+                    if (_isCreatorMode) {
+                      service.startBroadcasting('LingoHands Device');
+                    } else {
+                      service.startDiscovery();
+                    }
+                  }
+                },
                 child: Container(
                   width: 80,
                   height: 80,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: const Color(0xFF136DEC),
+                    color: isRunning
+                        ? const Color(0xFF136DEC)
+                        : const Color(0xFF101822),
                     boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF136DEC).withOpacity(0.45),
-                        blurRadius: 20,
-                        spreadRadius: 2,
-                      ),
+                      if (isRunning)
+                        BoxShadow(
+                          color: const Color(0xFF136DEC).withOpacity(0.45),
+                          blurRadius: 20,
+                          spreadRadius: 2,
+                        ),
                     ],
+                    border: Border.all(
+                      color: isRunning
+                          ? Colors.transparent
+                          : const Color(0xFF136DEC).withOpacity(0.5),
+                      width: 2,
+                    ),
                   ),
                   child: Center(
                     child: ScaleTransition(
                       scale: _iconScale,
-                      child: const Icon(
-                        Icons.bluetooth_searching,
+                      child: Icon(
+                        _isCreatorMode
+                            ? Icons.cell_tower
+                            : Icons.bluetooth_searching,
                         color: Colors.white,
                         size: 34,
                       ),
@@ -376,19 +382,27 @@ class _ConnectDevicesScreenState extends State<ConnectDevicesScreen>
           ),
         ),
         const SizedBox(height: 14),
-        const Text(
-          'SCANNING...',
+        Text(
+          isRunning
+              ? (_isCreatorMode ? 'BROADCASTING...' : 'SCANNING...')
+              : 'READY TO CONNECT',
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w600,
-            color: Color(0xFF136DEC),
+            color: isRunning
+                ? const Color(0xFF136DEC)
+                : const Color(0xFF9CA3AF),
             letterSpacing: 1.4,
           ),
         ),
         const SizedBox(height: 4),
-        const Text(
-          'Looking for nearby devices',
-          style: TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+        Text(
+          isRunning
+              ? (_isCreatorMode
+                    ? 'Visible to nearby devices'
+                    : 'Looking for nearby devices')
+              : 'Tap the button to start',
+          style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
         ),
       ],
     );
@@ -396,10 +410,11 @@ class _ConnectDevicesScreenState extends State<ConnectDevicesScreen>
 
   // ── Device list ────────────────────────────
   Widget _buildDeviceList() {
+    final service = context.watch<ConnectionService>();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Header row
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -412,18 +427,59 @@ class _ConnectDevicesScreenState extends State<ConnectDevicesScreen>
                 letterSpacing: 1.2,
               ),
             ),
-            SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: const Color(0xFF136DEC),
+            if (service.status == ConnectionStatus.scanning ||
+                service.status == ConnectionStatus.broadcasting)
+              const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Color(0xFF136DEC),
+                ),
               ),
-            ),
           ],
         ),
         const SizedBox(height: 14),
-        ..._devices.map((d) => _DeviceCard(device: d)).toList(),
+        if (!_isCreatorMode) ...[
+          if (service.discoveredDevices.isEmpty)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: Text(
+                  'No devices found yet',
+                  style: TextStyle(color: Color(0xFF6B7280), fontSize: 13),
+                ),
+              ),
+            )
+          else
+            ...service.discoveredDevices.map(
+              (d) => _DiscoveredDeviceCard(
+                device: d,
+                onConnect: () => service.connect(d),
+                isConnected: service.connectedDevice?.id == d.id,
+              ),
+            ),
+        ] else ...[
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 20),
+              child: Text(
+                'Waiting for connections...',
+                style: TextStyle(color: Color(0xFF6B7280), fontSize: 13),
+              ),
+            ),
+          ),
+          if (service.status == ConnectionStatus.connected)
+            const Center(
+              child: Text(
+                'A device has connected!',
+                style: TextStyle(
+                  color: Color(0xFF4ADE80),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+        ],
         const SizedBox(height: 20),
         const Center(
           child: Text(
@@ -460,8 +516,9 @@ class _ConnectDevicesScreenState extends State<ConnectDevicesScreen>
 }
 
 // ─────────────────────────────────────────────
-//  Ripple ring widget
+//  Helper Widgets
 // ─────────────────────────────────────────────
+
 class _RippleRing extends StatelessWidget {
   final AnimationController controller;
 
@@ -472,8 +529,8 @@ class _RippleRing extends StatelessWidget {
     return AnimatedBuilder(
       animation: controller,
       builder: (_, __) {
-        final t = controller.value; // 0 → 1
-        final size = 80 + 60 * t; // 80 px → 140 px
+        final t = controller.value;
+        final size = 80 + 60 * t;
         final opacity = (1.0 - t) * 0.7;
         final borderWidth = math.max(0.0, 4.0 * (1 - t));
 
@@ -493,25 +550,63 @@ class _RippleRing extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────
-//  Device card
-// ─────────────────────────────────────────────
-class _DeviceCard extends StatefulWidget {
-  final NearbyDevice device;
-  const _DeviceCard({required this.device});
+class _ModeButton extends StatelessWidget {
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _ModeButton({
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
 
   @override
-  State<_DeviceCard> createState() => _DeviceCardState();
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF136DEC) : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          label,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: isSelected ? Colors.white : const Color(0xFF9CA3AF),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
-class _DeviceCardState extends State<_DeviceCard> {
+class _DiscoveredDeviceCard extends StatefulWidget {
+  final DiscoveredDevice device;
+  final VoidCallback onConnect;
+  final bool isConnected;
+
+  const _DiscoveredDeviceCard({
+    required this.device,
+    required this.onConnect,
+    required this.isConnected,
+  });
+
+  @override
+  State<_DiscoveredDeviceCard> createState() => _DiscoveredDeviceCardState();
+}
+
+class _DiscoveredDeviceCardState extends State<_DiscoveredDeviceCard> {
   bool _hovered = false;
 
   @override
   Widget build(BuildContext context) {
     final d = widget.device;
-    final isAvailable = d.status == DeviceStatus.available;
-    final isStrong = d.status == DeviceStatus.strongSignal;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -527,80 +622,61 @@ class _DeviceCardState extends State<_DeviceCard> {
                 : const Color(0xFF101822).withOpacity(0.7),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: _hovered
+              color: _hovered || widget.isConnected
                   ? const Color(0xFF136DEC).withOpacity(0.35)
                   : Colors.white.withOpacity(0.05),
               width: 1,
             ),
           ),
-          child: Opacity(
-            opacity: isAvailable ? 0.7 : 1.0,
-            child: Row(
-              children: [
-                // Icon circle
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: _hovered ? d.iconColor : d.iconBgColor,
-                  ),
-                  child: Icon(
-                    d.icon,
-                    size: 20,
-                    color: _hovered ? Colors.white : d.iconColor,
-                  ),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: const Color(0xFF136DEC).withOpacity(0.1),
                 ),
-                const SizedBox(width: 14),
-                // Name + subtitle
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        d.name,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFFE5E7EB),
-                        ),
+                child: const Icon(
+                  Icons.smartphone,
+                  size: 20,
+                  color: Color(0xFF136DEC),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      d.name,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFFE5E7EB),
                       ),
-                      const SizedBox(height: 3),
-                      Row(
-                        children: [
-                          if (isStrong)
-                            Container(
-                              width: 7,
-                              height: 7,
-                              margin: const EdgeInsets.only(right: 5),
-                              decoration: const BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: Color(0xFF4ADE80),
-                              ),
-                            ),
-                          Text(
-                            d.subtitle,
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: isStrong
-                                  ? const Color(0xFF4ADE80)
-                                  : const Color(0xFF9CA3AF),
-                            ),
-                          ),
-                        ],
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      widget.isConnected
+                          ? 'Connected'
+                          : (d.ip ?? 'Resolving...'),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: widget.isConnected
+                            ? const Color(0xFF4ADE80)
+                            : const Color(0xFF9CA3AF),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                // Action button
-                _ActionButton(
-                  label: d.actionLabel,
-                  isPrimary: isStrong,
-                  isDim: isAvailable,
-                ),
-              ],
-            ),
+              ),
+              _ActionButton(
+                label: widget.isConnected ? 'Disconnect' : 'Connect',
+                isPrimary: !widget.isConnected,
+                onTap: widget.onConnect,
+              ),
+            ],
           ),
         ),
       ),
@@ -608,18 +684,15 @@ class _DeviceCardState extends State<_DeviceCard> {
   }
 }
 
-// ─────────────────────────────────────────────
-//  Action button on each card
-// ─────────────────────────────────────────────
 class _ActionButton extends StatefulWidget {
   final String label;
   final bool isPrimary;
-  final bool isDim;
+  final VoidCallback onTap;
 
   const _ActionButton({
     required this.label,
-    this.isPrimary = false,
-    this.isDim = false,
+    required this.isPrimary,
+    required this.onTap,
   });
 
   @override
@@ -631,47 +704,32 @@ class _ActionButtonState extends State<_ActionButton> {
 
   @override
   Widget build(BuildContext context) {
-    final Color textColor;
-    final Color bgColor;
-    final Color borderColor;
-
-    if (_hovered) {
-      textColor = Colors.white;
-      bgColor = const Color(0xFF136DEC);
-      borderColor = const Color(0xFF136DEC);
-    } else if (widget.isPrimary) {
-      textColor = const Color(0xFF136DEC);
-      bgColor = Colors.white.withOpacity(0.05);
-      borderColor = const Color(0xFF136DEC).withOpacity(0.3);
-    } else if (widget.isDim) {
-      textColor = const Color(0xFF6B7280);
-      bgColor = Colors.transparent;
-      borderColor = const Color(0xFF374151);
-    } else {
-      textColor = const Color(0xFFD1D5DB);
-      bgColor = Colors.white.withOpacity(0.05);
-      borderColor = Colors.white.withOpacity(0.1);
-    }
-
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       child: GestureDetector(
-        onTap: () {},
+        onTap: widget.onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
           decoration: BoxDecoration(
-            color: bgColor,
+            color: _hovered
+                ? const Color(0xFF136DEC)
+                : Colors.white.withOpacity(0.05),
             borderRadius: BorderRadius.circular(99),
-            border: Border.all(color: borderColor, width: 1),
+            border: Border.all(
+              color: _hovered
+                  ? const Color(0xFF136DEC)
+                  : const Color(0xFF136DEC).withOpacity(0.3),
+              width: 1,
+            ),
           ),
           child: Text(
             widget.label,
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w600,
-              color: textColor,
+              color: _hovered ? Colors.white : const Color(0xFF136DEC),
             ),
           ),
         ),

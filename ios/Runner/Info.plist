@@ -45,5 +45,11 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>LingoHands needs access to your local network to discover other devices.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_lingohands._tcp</string>
+	</array>
 </dict>
 </plist>
