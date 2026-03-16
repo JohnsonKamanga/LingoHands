@@ -5,6 +5,7 @@ abstract class ConnectionService extends ChangeNotifier {
   ConnectionStatus get status;
   List<DiscoveredDevice> get discoveredDevices;
   DiscoveredDevice? get connectedDevice;
+  bool get isEncryptionReady;
 
   Future<void> startBroadcasting(String deviceName);
   Future<void> stopBroadcasting();

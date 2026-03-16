@@ -28,6 +28,9 @@ class BonsoirConnectionService extends ConnectionService {
   bool _isEncryptionReady = false;
 
   @override
+  bool get isEncryptionReady => _isEncryptionReady;
+
+  @override
   ConnectionStatus get status => _status;
 
   @override
@@ -100,6 +103,7 @@ class BonsoirConnectionService extends ConnectionService {
       _encryptionService.setKey(key);
       _isEncryptionReady = true;
       if (kDebugMode) print('Encryption ready with shared key');
+      notifyListeners();
     } else if (_isEncryptionReady) {
       try {
         final decryptedMessage = _encryptionService.decrypt(rawMessage);
@@ -109,8 +113,9 @@ class BonsoirConnectionService extends ConnectionService {
       }
     } else {
       // If encryption isn't ready, we ignore or buffer (though in this design handshake is first)
-      if (kDebugMode)
+      if (kDebugMode) {
         print('Received message before encryption ready: $rawMessage');
+      }
     }
   }
 
@@ -224,7 +229,7 @@ class BonsoirConnectionService extends ConnectionService {
       _socket!.add(utf8.encode(encryptedMessage));
       await _socket!.flush();
     } else if (kDebugMode && !_isEncryptionReady) {
-      print('Cannot send message: Encryption not ready');
+      debugPrint('Cannot send message: Encryption not ready');
     }
   }
 

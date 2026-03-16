@@ -245,11 +245,18 @@ class _ConnectDevicesScreenState extends State<ConnectDevicesScreen>
                           ),
                         ),
                       ),
-                      const Center(
+                      Center(
                         child: Icon(
-                          Icons.connecting_airports,
+                          context.watch<ConnectionService>().isEncryptionReady
+                              ? Icons.verified_user
+                              : Icons.connecting_airports,
                           size: 80,
-                          color: Color(0x33136DEC),
+                          color:
+                              context
+                                  .watch<ConnectionService>()
+                                  .isEncryptionReady
+                              ? const Color(0x664ADE80)
+                              : const Color(0x33136DEC),
                         ),
                       ),
                       Positioned.fill(
@@ -385,12 +392,18 @@ class _ConnectDevicesScreenState extends State<ConnectDevicesScreen>
         Text(
           isRunning
               ? (_isCreatorMode ? 'BROADCASTING...' : 'SCANNING...')
-              : 'READY TO CONNECT',
+              : (service.status == ConnectionStatus.connected
+                    ? (service.isEncryptionReady
+                          ? 'SECURELY CONNECTED'
+                          : 'CONNECTING...')
+                    : 'READY TO CONNECT'),
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w600,
-            color: isRunning
-                ? const Color(0xFF136DEC)
+            color: isRunning || service.status == ConnectionStatus.connected
+                ? (service.isEncryptionReady
+                      ? const Color(0xFF4ADE80)
+                      : const Color(0xFF136DEC))
                 : const Color(0xFF9CA3AF),
             letterSpacing: 1.4,
           ),
@@ -657,16 +670,41 @@ class _DiscoveredDeviceCardState extends State<_DiscoveredDeviceCard> {
                       ),
                     ),
                     const SizedBox(height: 3),
-                    Text(
-                      widget.isConnected
-                          ? 'Connected'
-                          : (d.ip ?? 'Resolving...'),
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: widget.isConnected
-                            ? const Color(0xFF4ADE80)
-                            : const Color(0xFF9CA3AF),
-                      ),
+                    Row(
+                      children: [
+                        Text(
+                          widget.isConnected
+                              ? 'Connected'
+                              : (d.ip ?? 'Resolving...'),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: widget.isConnected
+                                ? const Color(0xFF4ADE80)
+                                : const Color(0xFF9CA3AF),
+                          ),
+                        ),
+                        if (widget.isConnected &&
+                            context
+                                .read<ConnectionService>()
+                                .isEncryptionReady) ...[
+                          const SizedBox(width: 6),
+                          const Icon(
+                            Icons.lock_outline,
+                            size: 10,
+                            color: Color(0xFF4ADE80),
+                          ),
+                          const SizedBox(width: 2),
+                          const Text(
+                            'SECURE',
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF4ADE80),
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ],
                 ),
