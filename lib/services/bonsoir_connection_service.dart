@@ -5,10 +5,12 @@ import 'package:bonsoir/bonsoir.dart';
 import 'package:flutter/foundation.dart';
 import 'package:lingo_hands/models/device_connection.dart';
 import 'package:lingo_hands/services/connection_service.dart';
+import 'package:lingo_hands/services/encryption_service.dart';
 
 class BonsoirConnectionService extends ConnectionService {
   static const String _serviceType = '_lingohands._tcp';
   static const int _port = 4545;
+  static const String _keyExchangePrefix = '__SEC_KEY__:';
 
   ConnectionStatus _status = ConnectionStatus.idle;
   final List<DiscoveredDevice> _discoveredDevices = [];
@@ -21,6 +23,9 @@ class BonsoirConnectionService extends ConnectionService {
   Socket? _socket;
   final StreamController<String> _messageController =
       StreamController<String>.broadcast();
+
+  final EncryptionService _encryptionService = EncryptionService();
+  bool _isEncryptionReady = false;
 
   @override
   ConnectionStatus get status => _status;
@@ -38,6 +43,7 @@ class BonsoirConnectionService extends ConnectionService {
   @override
   Future<void> startBroadcasting(String deviceName) async {
     _status = ConnectionStatus.broadcasting;
+    _isEncryptionReady = false;
     notifyListeners();
 
     try {
@@ -68,16 +74,44 @@ class BonsoirConnectionService extends ConnectionService {
     }
     _socket = socket;
     _status = ConnectionStatus.connected;
+
+    // Server Side: Generate and share the key
+    final sessionKey = EncryptionService.generateRandomKey();
+    _encryptionService.setKey(sessionKey);
+    _isEncryptionReady = true;
+
+    _socket!.add(utf8.encode('$_keyExchangePrefix$sessionKey'));
     notifyListeners();
 
     _socket!.listen(
       (data) {
-        String message = utf8.decode(data);
-        _messageController.add(message);
+        String rawMessage = utf8.decode(data);
+        _handleIncomingData(rawMessage);
       },
-      onDone: disconnect,
+      onDone: () => disconnect(),
       onError: (e) => disconnect(),
     );
+  }
+
+  void _handleIncomingData(String rawMessage) {
+    if (rawMessage.startsWith(_keyExchangePrefix)) {
+      // Client Side: Receive the key
+      final key = rawMessage.replaceFirst(_keyExchangePrefix, '');
+      _encryptionService.setKey(key);
+      _isEncryptionReady = true;
+      if (kDebugMode) print('Encryption ready with shared key');
+    } else if (_isEncryptionReady) {
+      try {
+        final decryptedMessage = _encryptionService.decrypt(rawMessage);
+        _messageController.add(decryptedMessage);
+      } catch (e) {
+        if (kDebugMode) print('Decryption error: $e');
+      }
+    } else {
+      // If encryption isn't ready, we ignore or buffer (though in this design handshake is first)
+      if (kDebugMode)
+        print('Received message before encryption ready: $rawMessage');
+    }
   }
 
   @override
@@ -87,6 +121,7 @@ class BonsoirConnectionService extends ConnectionService {
     _broadcast = null;
     _serverSocket = null;
     _status = ConnectionStatus.idle;
+    _isEncryptionReady = false;
     notifyListeners();
   }
 
@@ -94,6 +129,7 @@ class BonsoirConnectionService extends ConnectionService {
   Future<void> startDiscovery() async {
     _status = ConnectionStatus.scanning;
     _discoveredDevices.clear();
+    _isEncryptionReady = false;
     notifyListeners();
 
     try {
@@ -141,6 +177,7 @@ class BonsoirConnectionService extends ConnectionService {
     await _discovery?.stop();
     _discovery = null;
     _status = ConnectionStatus.idle;
+    _isEncryptionReady = false;
     notifyListeners();
   }
 
@@ -157,10 +194,10 @@ class BonsoirConnectionService extends ConnectionService {
 
       _socket!.listen(
         (data) {
-          String message = utf8.decode(data);
-          _messageController.add(message);
+          String rawMessage = utf8.decode(data);
+          _handleIncomingData(rawMessage);
         },
-        onDone: disconnect,
+        onDone: () => disconnect(),
         onError: (e) => disconnect(),
       );
     } catch (e) {
@@ -176,14 +213,18 @@ class BonsoirConnectionService extends ConnectionService {
     _socket = null;
     _connectedDevice = null;
     _status = ConnectionStatus.idle;
+    _isEncryptionReady = false;
     notifyListeners();
   }
 
   @override
   Future<void> sendMessage(String message) async {
-    if (_socket != null) {
-      _socket!.add(utf8.encode(message));
+    if (_socket != null && _isEncryptionReady) {
+      final encryptedMessage = _encryptionService.encrypt(message);
+      _socket!.add(utf8.encode(encryptedMessage));
       await _socket!.flush();
+    } else if (kDebugMode && !_isEncryptionReady) {
+      print('Cannot send message: Encryption not ready');
     }
   }
 
